@@ -130,18 +130,9 @@ public:
             f.read(reinterpret_cast<char*>(&prev), sizeof(Record));
 
             int cmp = strcmp(record.code, prev.code);
-            if (cmp>0) {
-//                f.seekp(u*(int)sizeof(Record) + Record::startToRight());
-//                f.write(reinterpret_cast<char*>(&n), sizeof(int));
-                prev.right=n;
-//                cout << prev << record;
-                f.seekp(u*(int)sizeof(Record));
-                f.write(reinterpret_cast<char*>(&prev), sizeof(Record));
-            }
-            else {
-                f.seekp(u*(int)sizeof(Record) + Record::startToLeft());
-                f.write(reinterpret_cast<char*>(&n), sizeof(int));
-            }
+            (cmp>0) ? prev.right=n : prev.left=n;
+            f.seekp(u*(int)sizeof(Record));
+            f.write(reinterpret_cast<char*>(&prev), sizeof(Record));
 
             record.parent = u;
             record.height = prev.height + 1;
