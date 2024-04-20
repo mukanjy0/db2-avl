@@ -243,6 +243,8 @@ public:
     }
 
     void insert(Record record) {
+        record.height = 0;
+
         if (++n==1) {
             rootPos = 1;
             writeRecord(record, rootPos);
@@ -351,42 +353,43 @@ public:
     }
 };
 
-void test() {
+int main() {
+    // example records
     Record records[16] = {
-            {"0001", "John Smith", 1,0,0,0,0},
-            {"0002", "Emily Johnson", 2,0,0,0,0},
-            {"0003", "Michael Williams", 3,0,0,0,0},
-            {"0004", "Emma Jones", 4,0,0,0,0},
-            {"0005", "Daniel Brown", 5,0,0,0,0},
-            {"0006", "Olivia Davis", 6,0,0,0,0},
-            {"0007", "Matthew Miller", 7,0,0,0,0},
-            {"0008", "Sophia Wilson", 8,0,0,0,0},
-            {"0009", "James Taylor", 1,0,0,0,0},
-            {"0010", "Ava Anderson", 2,0,0,0,0},
-            {"0011", "David Martinez", 3,0,0,0,0},
-            {"0012", "Isabella Jackson", 4,0,0,0,0},
-            {"0013", "Joseph Harris", 5,0,0,0,0},
-            {"0014", "Charlotte Moore", 6,0,0,0,0},
-            {"0015", "Christopher Lee", 7,0,0,0,0},
-            {"0016", "Mia Thompson", 8,0,0,0,0}
+            {"0001", "John Smith", 1},
+            {"0002", "Emily Johnson", 2},
+            {"0003", "Michael Williams", 3},
+            {"0004", "Emma Jones", 4},
+            {"0005", "Daniel Brown", 5},
+            {"0006", "Olivia Davis", 6},
+            {"0007", "Matthew Miller", 7},
+            {"0008", "Sophia Wilson", 8},
+            {"0016", "Mia Thompson", 8},
+            {"0015", "Christopher Lee", 7},
+            {"0014", "Charlotte Moore", 6},
+            {"0013", "Joseph Harris", 5},
+            {"0012", "Isabella Jackson", 4},
+            {"0011", "David Martinez", 3},
+            {"0010", "Ava Anderson", 2},
+            {"0009", "James Taylor", 1}
     };
 
     AVLFile avl ("data.bin");
 
+    // test insertion
     for (auto& r : records)
         avl.insert(r);
 
+    // test find
     for (auto& r : records)
         assert(avl.find(r.code) == r);
 
+    // test in order
     vector<Record> v = avl.inOrder();
     cout << (int)v.size() << '\n';
 
     for (const auto& r : v)
         cout << r;
-}
 
-int main() {
-    test();
     return 0;
 }
