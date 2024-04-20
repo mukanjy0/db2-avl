@@ -33,8 +33,8 @@ struct Record {
     }
     friend ostream& operator<<(ostream& out, const Record& r){
 //        out << r.code << '|' << r.name << '|' << r.semester << '\n';
-        out << r.code << '|' << r.name << '|' << r.semester << '|' << r.left << '|' << r.right << '\n';
-//        out << r.code << '|' << r.height << '|' << r.parent << '|' << r.left << '|' << r.right << '\n';
+//        out << r.code << '|' << r.name << '|' << r.semester << '|' << r.left << '|' << r.right << '\n';
+        out << r.code << '|' << r.height << '|' << r.parent << '|' << r.left << '|' << r.right << '\n';
         return out;
     }
 };
@@ -91,13 +91,11 @@ class AVLFile {
         root.left = lrrPos;
         lrr.parent = rtPos;
 
+        int rtParentPos = root.parent;
+        lr.parent = rtParentPos;
         if (root.parent) {
-            int rtParentPos = root.parent;
             Record rtParent = readRecord(rtParentPos);
-
-            lr.parent = rtParentPos;
             (rtParent.right == rtPos) ? rtParent.right = lrPos : rtParent.left = lrPos;
-
             writeRecord(rtParent, rtParentPos);
         }
         else rootPos = lrPos;
@@ -114,8 +112,8 @@ class AVLFile {
         writeRecord(root, rtPos);
         writeRecord(l, lPos);
         writeRecord(lr, lrPos);
-        writeRecord(lrl, lrlPos);
-        writeRecord(lrr, lrrPos);
+        if (lrlPos) writeRecord(lrl, lrlPos);
+        if (lrrPos) writeRecord(lrr, lrrPos);
     }
     void rl(Record& root, int rtPos, Record& r, int rPos, Record& rl, int rlPos) {
         int rllPos = rl.left;
@@ -129,13 +127,11 @@ class AVLFile {
         r.left = rlrPos;
         rlr.parent = rPos;
 
-        if (root.parent) {
-            int rtParentPos = root.parent;
+        int rtParentPos = root.parent;
+        rl.parent = rtParentPos;
+        if (rtParentPos) {
             Record rtParent = readRecord(rtParentPos);
-
-            rl.parent = rtParentPos;
             (rtParent.right == rtPos) ? rtParent.right = rlPos : rtParent.left = rlPos;
-
             writeRecord(rtParent, rtParentPos);
         }
         else rootPos = rlPos;
@@ -152,8 +148,8 @@ class AVLFile {
         writeRecord(root, rtPos);
         writeRecord(r, rPos);
         writeRecord(rl, rlPos);
-        writeRecord(rll, rllPos);
-        writeRecord(rlr, rlrPos);
+        if (rllPos) writeRecord(rll, rllPos);
+        if (rlrPos) writeRecord(rlr, rlrPos);
     }
     void ll(Record& root, int rtPos, Record& l, int lPos) {
         int lrPos = l.right;
@@ -162,13 +158,11 @@ class AVLFile {
         root.left = l.right;
         lr.parent = rtPos;
 
-        if (root.parent) {
-            int rtParentPos = root.parent;
+        int rtParentPos = root.parent;
+        l.parent = rtParentPos;
+        if (rtParentPos) {
             Record rtParent = readRecord(rtParentPos);
-
-            l.parent = rtParentPos;
             (rtParent.right == rtPos) ? rtParent.right = lPos : rtParent.left = lPos;
-
             writeRecord(rtParent, rtParentPos);
         }
         else rootPos = lPos;
@@ -176,12 +170,11 @@ class AVLFile {
         l.right = rtPos;
         root.parent = lPos;
 
-        root.height -= 1;
-        l.height += 1;
+        root.height = max(lr.height, readRecord(root.right).height) + 1;
 
         writeRecord(root, rtPos);
         writeRecord(l, lPos);
-        writeRecord(lr, lrPos);
+        if (lrPos) writeRecord(lr, lrPos);
     }
     void rr(Record& root, int rtPos, Record& r, int rPos) {
         int rlPos = r.left;
@@ -190,13 +183,11 @@ class AVLFile {
         root.right = r.left;
         rl.parent = rtPos;
 
-        if (root.parent) {
-            int rtParentPos = root.parent;
+        int rtParentPos = root.parent;
+        r.parent = rtParentPos;
+        if (rtParentPos) {
             Record rtParent = readRecord(root.parent);
-
-            r.parent = rtParentPos;
             (rtParent.right == rtPos) ? rtParent.right = rPos : rtParent.left = rPos;
-
             writeRecord(rtParent, rtParentPos);
         }
         else rootPos = rPos;
@@ -204,12 +195,11 @@ class AVLFile {
         r.left = rtPos;
         root.parent = rPos;
 
-        root.height -= 1;
-        r.height += 1;
+        root.height = max(rl.height, readRecord(root.left).height) + 1;
 
         writeRecord(root, rtPos);
         writeRecord(r, rPos);
-        writeRecord(rl, rlPos);
+        if (rlPos) writeRecord(rl, rlPos);
     }
 
 public:
@@ -279,7 +269,7 @@ public:
 
                     if (height - otherChild.height > 2) { // (height - 1) = child.height
                         Record rightSubChild = readRecord(child.right);
-                        if (rightSubChild.height + 1 != height) {
+                        if (rightSubChild.height + 1 != child.height) {
                             Record childLeft = readRecord(child.left);
                             rl(parent, parentPos, child, childPos, childLeft, child.left);
                         }
@@ -303,7 +293,7 @@ public:
                     otherChild = readRecord(parent.right);
                     if (height - otherChild.height > 2) { // (height - 1) = child.height
                         Record leftSubChild = readRecord(child.left);
-                        if (leftSubChild.height + 1 != height) {
+                        if (leftSubChild.height + 1 != child.height) {
                             Record childRight = readRecord(child.right);
                             lr(parent, parentPos, child, childPos, childRight, child.right);
                         }
@@ -340,7 +330,7 @@ public:
         s.push(rootPos);
 
         int i {};
-        vector<Record> records;
+        vector<Record> records (n);
         vector<bool> vis (n+1);
 
         while (!s.empty()) {
@@ -385,13 +375,13 @@ void test() {
     for (auto& r : records)
         avl.insert(r);
     for (auto& r : records) {
-        cout << avl.find(r.code);
-//        assert(avl.find(r.code) == r);
+//        cout << avl.find(r.code);
+        assert(avl.find(r.code) == r);
     }
-//    vector<Record> v = avl.inOrder();
-//    cout << (int)v.size() << '\n';
-//    for (const auto& r : v)
-//        cout << r;
+    vector<Record> v = avl.inOrder();
+    cout << (int)v.size() << '\n';
+    for (const auto& r : v)
+        cout << r;
 }
 
 int main() {
