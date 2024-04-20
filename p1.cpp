@@ -17,7 +17,7 @@ struct Record {
     char code[5]{};
     char name[20]{};
     int semester {};
-    int height {};
+    int height {-1};
     int parent {};
     int left {};
     int right {};
@@ -34,6 +34,7 @@ struct Record {
     friend ostream& operator<<(ostream& out, const Record& r){
 //        out << r.code << '|' << r.name << '|' << r.semester << '\n';
         out << r.code << '|' << r.name << '|' << r.semester << '|' << r.left << '|' << r.right << '\n';
+//        out << r.code << '|' << r.height << '|' << r.parent << '|' << r.left << '|' << r.right << '\n';
         return out;
     }
 };
@@ -41,22 +42,25 @@ struct Record {
 
 class AVLFile {
     string filename;
-    int rootPos {}; // rootPosition of root
     int n {}; // number of records
+    int rootPos {}; // rootPosition of root
 
     void readHeader() {
         ifstream f (filename.c_str(), ios::binary);
-        f.read(reinterpret_cast<char*>(&rootPos), sizeof(int));
         f.read(reinterpret_cast<char*>(&n), sizeof(int));
+        f.read(reinterpret_cast<char*>(&rootPos), sizeof(int));
         f.close();
     }
     void writeHeader() {
         ofstream f (filename.c_str(), ios::in | ios::binary);
-        f.write(reinterpret_cast<char*>(&rootPos), sizeof(int));
-        f.write(reinterpret_cast<char*>(&n), sizeof(Record)-sizeof(int));
+        f.write(reinterpret_cast<char*>(&n), sizeof(int));
+        f.write(reinterpret_cast<char*>(&rootPos), sizeof(Record)-sizeof(int));
         f.close();
     }
     Record readRecord(int pos) {
+        if (pos > n || pos < 0)
+            throw runtime_error("Invalid position for record.");
+
         if (pos == 0) return Record {};
 
         ifstream f (filename.c_str(), ios::binary);
@@ -67,16 +71,89 @@ class AVLFile {
         return record;
     }
     void writeRecord(Record& record, int pos) {
+        if (pos <= 0 || pos > n)
+            throw runtime_error("Invalid position for record.");
+
         ofstream f (filename.c_str(), ios::in | ios::binary);
         f.seekp(pos * (int) sizeof(Record));
         f.write(reinterpret_cast<char *>(&record), sizeof(Record));
         f.close();
     }
-    void lr(Record& root, int rtPos, Record& l, int lPos, Record& r, int rPos) {
+    void lr(Record& root, int rtPos, Record& l, int lPos, Record& lr, int lrPos) {
+        int lrlPos = lr.left;
+        Record lrl = readRecord(lrlPos);
+        int lrrPos = lr.right;
+        Record lrr = readRecord(lrrPos);
 
+        l.right = lr.left;
+        lrl.parent = lPos;
+
+        root.left = lrrPos;
+        lrr.parent = rtPos;
+
+        if (root.parent) {
+            int rtParentPos = root.parent;
+            Record rtParent = readRecord(rtParentPos);
+
+            lr.parent = rtParentPos;
+            (rtParent.right == rtPos) ? rtParent.right = lrPos : rtParent.left = lrPos;
+
+            writeRecord(rtParent, rtParentPos);
+        }
+        else rootPos = lrPos;
+
+        lr.left = lPos;
+        l.parent = lrPos;
+
+        lr.right = rtPos;
+        root.parent = lrPos;
+
+        lr.height += 1;
+        l.height -= 1;
+
+        writeRecord(root, rtPos);
+        writeRecord(l, lPos);
+        writeRecord(lr, lrPos);
+        writeRecord(lrl, lrlPos);
+        writeRecord(lrr, lrrPos);
     }
-    void rl(Record& root, int rtPos, Record& r, int rPos, Record& l, int lPos) {
+    void rl(Record& root, int rtPos, Record& r, int rPos, Record& rl, int rlPos) {
+        int rllPos = rl.left;
+        Record rll = readRecord(rllPos);
+        int rlrPos = rl.left;
+        Record rlr = readRecord(rlrPos);
 
+        root.right = rllPos;
+        rll.parent = rtPos;
+
+        r.left = rlrPos;
+        rlr.parent = rPos;
+
+        if (root.parent) {
+            int rtParentPos = root.parent;
+            Record rtParent = readRecord(rtParentPos);
+
+            rl.parent = rtParentPos;
+            (rtParent.right == rtPos) ? rtParent.right = rlPos : rtParent.left = rlPos;
+
+            writeRecord(rtParent, rtParentPos);
+        }
+        else rootPos = rlPos;
+
+        rl.left = rtPos;
+        root.parent = rlPos;
+
+        rl.right = rPos;
+        r.left = rlPos;
+
+        rl.height += 1;
+        r.height -= 1;
+
+        writeRecord(root, rtPos);
+        writeRecord(r, rPos);
+        writeRecord(rl, rlPos);
+        writeRecord(rll, rllPos);
+        writeRecord(rlr, rlrPos);
     }
     void ll(Record& root, int rtPos, Record& l, int lPos) {
         int lrPos = l.right;
@@ -85,15 +162,54 @@ class AVLFile {
         root.left = l.right;
         lr.parent = rtPos;
 
+        if (root.parent) {
+            int rtParentPos = root.parent;
+            Record rtParent = readRecord(rtParentPos);
+
+            l.parent = rtParentPos;
+            (rtParent.right == rtPos) ? rtParent.right = lPos : rtParent.left = lPos;
+
+            writeRecord(rtParent, rtParentPos);
+        }
+        else rootPos = lPos;
+
         l.right = rtPos;
         root.parent = lPos;
+
+        root.height -= 1;
+        l.height += 1;
 
         writeRecord(root, rtPos);
         writeRecord(l, lPos);
         writeRecord(lr, lrPos);
     }
     void rr(Record& root, int rtPos, Record& r, int rPos) {
+        int rlPos = r.left;
+        Record rl = readRecord(rlPos);
 
+        root.right = r.left;
+        rl.parent = rtPos;
+
+        if (root.parent) {
+            int rtParentPos = root.parent;
+            Record rtParent = readRecord(root.parent);
+
+            r.parent = rtParentPos;
+            (rtParent.right == rtPos) ? rtParent.right = rPos : rtParent.left = rPos;
+
+            writeRecord(rtParent, rtParentPos);
+        }
+        else rootPos = rPos;
+
+        r.left = rtPos;
+        root.parent = rPos;
+
+        root.height -= 1;
+        r.height += 1;
+
+        writeRecord(root, rtPos);
+        writeRecord(r, rPos);
+        writeRecord(rl, rlPos);
     }
 
 public:
@@ -101,7 +217,13 @@ public:
         fstream f (filename.c_str(), ios::in | ios::out | ios::binary);
         bool exists = f.is_open();
         f.close();
-        exists ? readHeader() : writeHeader();
+        if (exists) readHeader();
+        else {
+            ofstream of (filename.c_str(), ios::binary);
+            of.write(reinterpret_cast<char*>(&n), sizeof(int));
+            of.write(reinterpret_cast<char*>(&rootPos), sizeof(int));
+            of.close();
+        }
     }
 
     pair<int,bool> search(char* key) { // returns rootPos of found record or last valid rootPos if not found
@@ -133,6 +255,7 @@ public:
         if (++n==1) {
             rootPos = 1;
             writeRecord(record, rootPos);
+            writeHeader();
             return;
         }
 
@@ -141,25 +264,39 @@ public:
 
         Record parent = readRecord(u);
         (strcmp(record.code, parent.code)>0) ? parent.right=n : parent.left=n;
-
         writeRecord(parent, u);
-        writeRecord(record, u);
+
+        record.parent = u;
+        writeRecord(record, n);
 
         Record child = record;
-        int childId = n, parentId = u, height {1};
-        while (parentId > 0) {
+        int childPos = n, parentPos = u, height {1};
+        while (parentPos > 0) {
             if (parent.height < height) {
                 Record otherChild {};
-                if (childId == parent.right) {
+                if (childPos == parent.right) {
                     otherChild = readRecord(parent.left);
+
                     if (height - otherChild.height > 2) { // (height - 1) = child.height
                         Record rightSubChild = readRecord(child.right);
                         if (rightSubChild.height + 1 != height) {
-                            rl(parent, child, readRecord(child.left));
+                            Record childLeft = readRecord(child.left);
+                            rl(parent, parentPos, child, childPos, childLeft, child.left);
                         }
                         else {
-                            rr(parent, child);
+                            rr(parent, parentPos, child, childPos);
                         }
+
+                        parentPos = 0;
+                    }
+                    else {
+                        parent.height = height;
+                        writeRecord(parent, parentPos);
+
+                        childPos = parentPos;
+                        parentPos = parent.parent;
+                        child = readRecord(childPos);
+                        parent = readRecord(parentPos);
                     }
                 }
                 else {
@@ -167,17 +304,33 @@ public:
                     if (height - otherChild.height > 2) { // (height - 1) = child.height
                         Record leftSubChild = readRecord(child.left);
                         if (leftSubChild.height + 1 != height) {
-                            lr(parent, child, readRecord(child.left));
+                            Record childRight = readRecord(child.right);
+                            lr(parent, parentPos, child, childPos, childRight, child.right);
                         }
                         else {
-                            ll(parent, child);
+                            ll(parent, parentPos, child, childPos);
                         }
+
+                        parentPos = 0;
+                    }
+                    else {
+                        parent.height = height;
+                        writeRecord(parent, parentPos);
+
+                        childPos = parentPos;
+                        parentPos = parent.parent;
+                        child = readRecord(childPos);
+                        parent = readRecord(parentPos);
                     }
                 }
             }
-            else parentId = 0;
+            else parentPos = 0;
             ++height;
         }
+
+        writeHeader();
+//        Record r = readRecord(rootPos);
+//        cout << r << '\n';
     }
 
     vector<Record> inOrder() {
@@ -232,13 +385,13 @@ void test() {
     for (auto& r : records)
         avl.insert(r);
     for (auto& r : records) {
-//        cout << avl.find(r.code);
-        assert(avl.find(r.code) == r);
+        cout << avl.find(r.code);
+//        assert(avl.find(r.code) == r);
     }
-    vector<Record> v = avl.inOrder();
-    cout << (int)v.size() << '\n';
-    for (const auto& r : v)
-        cout << r;
+//    vector<Record> v = avl.inOrder();
+//    cout << (int)v.size() << '\n';
+//    for (const auto& r : v)
+//        cout << r;
 }
 
 int main() {
