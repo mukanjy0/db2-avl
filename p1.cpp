@@ -32,10 +32,11 @@ struct Record {
         return !(r1==r2);
     }
     friend ostream& operator<<(ostream& out, const Record& r){
-//        out << r.code << '|' << r.name << '|' << r.semester << '\n';
-//        out << r.code << '|' << r.name << '|' << r.semester << '|' << r.left << '|' << r.right << '\n';
-        out << r.code << '|' << r.height << '|' << r.parent << '|' << r.left << '|' << r.right << '\n';
+        out << r.code << '|' << r.name << '|' << r.semester << '\n';
         return out;
+    }
+    void print() {
+        cout << code << '|' << height << '|' << parent << '|' << left << '|' << right << '\n';
     }
 };
 
@@ -43,7 +44,7 @@ struct Record {
 class AVLFile {
     string filename;
     int n {}; // number of records
-    int rootPos {}; // rootPosition of root
+    int rootPos {}; // position of root
 
     void readHeader() {
         ifstream f (filename.c_str(), ios::binary);
@@ -319,8 +320,6 @@ public:
         }
 
         writeHeader();
-//        Record r = readRecord(rootPos);
-//        cout << r << '\n';
     }
 
     vector<Record> inOrder() {
@@ -371,15 +370,18 @@ void test() {
             {"0015", "Christopher Lee", 7,0,0,0,0},
             {"0016", "Mia Thompson", 8,0,0,0,0}
     };
+
     AVLFile avl ("data.bin");
+
     for (auto& r : records)
         avl.insert(r);
-    for (auto& r : records) {
-//        cout << avl.find(r.code);
+
+    for (auto& r : records)
         assert(avl.find(r.code) == r);
-    }
+
     vector<Record> v = avl.inOrder();
     cout << (int)v.size() << '\n';
+
     for (const auto& r : v)
         cout << r;
 }
